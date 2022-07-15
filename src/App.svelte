@@ -1,65 +1,77 @@
 <script lang="ts">
-  import svelteLogo from './assets/svelte.svg';
-  import Counter from './lib/Counter.svelte';
   import {onMount} from 'svelte';
   import vertex from './shaders/vertex.glsl';
   import fragment from './shaders/fragment.glsl';
+  import {GLContextManager} from './graphics/GLContext';
+  import {GLError} from './graphics/GLError';
 
-  let gl;
-  let canvas;
+  let errors: GLError[] = [];
+  let gl: GLContextManager;
+  let vbo: WebGLBuffer;
+  const positions = new Float32Array([
+    0, 0.5,
+    -0.5, -0.5,
+    0.5, -0.5
+  ]);
+
 
   onMount(() => {
     console.log({vertex, fragment});
-    canvas = document.getElementById('gl-context');
-    gl = canvas.getContext('webgl2');
-    if (!gl) {
-      alert('No se pudo inicial web GL');
+    const canvas = document.getElementById('gl-context') as HTMLCanvasElement;
+    const glContext = canvas.getContext('webgl2');
+    if (!glContext) {
+      alert('WebGl 2 context is not supported');
       return;
     }
-    console.log(gl.getParameter(gl.VERSION));
-    console.log(gl.getParameter(gl.SHADING_LANGUAGE_VERSION));
-    const shad = gl.createShader(gl.VERTEX_SHADER);
-    gl.shaderSource(shad, vertex);
-    gl.compileShader(shad);
-    const compiled = gl.getShaderParameter(shad, gl.COMPILE_STATUS);
-    console.log({compiled});
-    gl.clearColor(0, 0, 0, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    gl = new GLContextManager(glContext);
+    console.log(gl.version);
+    console.log(gl.langVersion);
+
+    gl.AddVertexShader('vertex', vertex);
+    gl.AddFragmentShader('fragment', fragment);
+    if (gl.hasErrors) {
+      const newSet: GLError[] = [];
+      gl.ForErrors(e => newSet.push(e));
+      errors = newSet;
+    }
+
+    const program = gl.GetBuilder()
+      .AttachVertex('vertex')
+      .AttachFragmentShader('fragment')
+      .build();
+
+    if (program instanceof GLError) {
+      alert(program.GLMessage);
+    } else {
+      gl.Operate(program);
+    }
+
+    gl.Paint();
+
+    const lock = glContext.getAttribLocation(program, 'in_position');
+    vbo = glContext.createBuffer();
+    glContext.bindBuffer(glContext.ARRAY_BUFFER, vbo);
+    glContext.bufferData(glContext.ARRAY_BUFFER, positions, glContext.STATIC_DRAW);
+    glContext.vertexAttribPointer(lock, 2, glContext.FLOAT, false, 0, 0);
+    glContext.enableVertexAttribArray(lock);
+    glContext.drawArrays(glContext.TRIANGLES, 0, 3);
   });
 
 </script>
 
+<h1>WebGL</h1>
 <main>
-    <div>
-        <a href="https://vitejs.dev" target="_blank">
-            <img src="/vite.svg" class="logo" alt="Vite Logo"/>
-        </a>
-        <a href="https://svelte.dev" target="_blank">
-            <img src={svelteLogo} class="logo svelte" alt="Svelte Logo"/>
-        </a>
-    </div>
-    <h1>Vite + Svelte</h1>
-
-    <div class="card">
-        <Counter/>
-    </div>
+    <ul>
+        {#each errors as error}
+            <li>
+                <p>{error.GLMessage}</p>
+            </li>
+        {/each}
+    </ul>
     <canvas width="800px" height="600px" id="gl-context">
-
     </canvas>
 </main>
 
 <style>
-    .logo {
-        height: 6em;
-        padding: 1.5em;
-        will-change: filter;
-    }
-
-    .logo:hover {
-        filter: drop-shadow(0 0 2em #646cffaa);
-    }
-
-    .logo.svelte:hover {
-        filter: drop-shadow(0 0 2em #ff3e00aa);
-    }
 </style>
