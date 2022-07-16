@@ -47,14 +47,28 @@
       gl.Operate(program);
     }
 
-    gl.Paint();
-
     const lock = glContext.getAttribLocation(program, 'in_position');
+    const color = glContext.getAttribLocation(program, 'in_color');
+
     vbo = glContext.createBuffer();
+    const colorVbo = glContext.createBuffer();
+
+    gl.Paint();
     glContext.bindBuffer(glContext.ARRAY_BUFFER, vbo);
     glContext.bufferData(glContext.ARRAY_BUFFER, positions, glContext.STATIC_DRAW);
     glContext.vertexAttribPointer(lock, 2, glContext.FLOAT, false, 0, 0);
     glContext.enableVertexAttribArray(lock);
+    glContext.drawArrays(glContext.TRIANGLES, 0, 3);
+
+    const colors = new Float32Array([
+      1, 0, 0,
+      0, 1, 0,
+      0, 0, 1
+    ]);
+    glContext.bindBuffer(glContext.ARRAY_BUFFER, colorVbo);
+    glContext.bufferData(glContext.ARRAY_BUFFER, colors, glContext.STATIC_DRAW);
+    glContext.vertexAttribPointer(color, 3, glContext.FLOAT, false, 0, 0);
+    glContext.enableVertexAttribArray(color);
     glContext.drawArrays(glContext.TRIANGLES, 0, 3);
   });
 
